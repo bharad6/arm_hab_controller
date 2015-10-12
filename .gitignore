@@ -34,3 +34,10 @@
 *.bin
 *.hex
 *.htm
+
+#Mac related files
+*.DS_Store
+
+#Exceptions to gitignore
+
+!mbed/TARGET_NUCLEO_L152RE/TOOLCHAIN_GCC_ARM/*
