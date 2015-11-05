@@ -47,13 +47,18 @@ int main() {
         // For one second we parse GPS data and report some key values
         for (unsigned long start = time(NULL); time(NULL) - start < 1;)
         {
+            //int i = 0;
             while (gps_ser.readable())
             {
                 char c = gps_ser.getc();
-                //pc.printf("%c",c); // uncomment this line if you want to see the GPS data flowing
-                if (gps.encode(c)) // Did a new valid sentence come in?
-                newData = true;
+                //printf("%c",c); // uncomment this line if you want to see the GPS data flowing
+                if (gps.encode(c)) {
+                    newData = true;// Did a new valid sentence come in?   
+                    //printf("The Data is TRUE\n");
+                }
+                //i+=1;
             }
+            //printf("Num of chars: %d\n",i);
         }
         FILE *fp = fopen("/sd/filetest.txt", "a");
         if (newData)
@@ -62,31 +67,33 @@ int main() {
             unsigned long age;
             gps.f_get_position(&flat, &flon, &age);
             print_date(fp, gps);
-            printf("LAT=");
-            printf("%.6f",flat);
+            printf("LAT=%.6f LON=%.6f ALT=%.6f PREC= %i\n",flat,flon,gps.f_altitude(),gps.hdop());
+            //printf("LAT=%.6f");
+            //printf("%.6f",flat);
             fprintf(fp,"LAT= %.6f",flat);
-            printf(" LON=");
-            printf("%.6f",flon);
+            //printf(" LON=");
+            //printf("%.6f",flon);
             fprintf(fp," LON= %.6f",flon);
-            printf(" ALT=");
-            printf("%.6f",gps.f_altitude());
+            //printf(" ALT=");
+            //printf("%.6f",gps.f_altitude());
             fprintf(fp," ALT= %.6f",gps.f_altitude());
-            printf(" PREC= %i", gps.hdop());
+            //printf(" PREC= %i", gps.hdop());
             fprintf(fp," PREC= %i", gps.hdop());
-            
+            //printf("\n");
         }
   
         gps.stats(&chars, &sentences, &failed);
-        printf(" CHARS=");
-        printf("%u",chars);
+        printf("CHARS=%u SENTENCES=%u CSUM_ERR=%u\n",chars,sentences,failed);
+        //printf(" CHARS=");
+        //printf("%u",chars);
         fprintf(fp," CHARS = %u",chars);
         
-        printf(" SENTENCES=");
-        printf("%u",sentences);
+        //printf(" SENTENCES=");
+        //printf("%u",sentences);
         fprintf(fp," SENTENCES = %u",sentences);
         
-        printf(" CSUM ERR=");
-        printf("%u\n",failed);
+        //printf(" CSUM ERR=");
+        //printf("%u\n",failed);
         fprintf(fp," CSUM ERR = %u\n",failed);
         fclose(fp);
         if (chars == 0) printf("** No characters received from GPS: check wiring **\n");
@@ -107,7 +114,7 @@ static void print_date(FILE *fp, TinyGPS &gps)
   else
   {
     char sz[32];
-    sprintf(sz, "DATE&TIME = %02d/%02d/%02d %02d:%02d:%02d ",
+    sprintf(sz, "DATE&TIME = %02d/%02d/%02d %02d:%02d:%02d\n",
         month, day, year, hour, minute, second);
     printf(sz);
     fprintf(fp,sz);
