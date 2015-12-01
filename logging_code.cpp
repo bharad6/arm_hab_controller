@@ -1,7 +1,7 @@
 
 
 void logging_setup();
-void logging_loop();
+void logging_loop(FILE *logging_file);
 
 void logging_setup() {
     p_sensor.MS5803Init();
@@ -20,7 +20,7 @@ void logging_setup() {
     logging_file = fopen("/sd/data/logging.txt", "a");	
 }
 
-void logging_loop(FILE *fp) {
+void logging_loop(FILE *logging_file) {
     update_data();
     log_data(logging_file);        
 }

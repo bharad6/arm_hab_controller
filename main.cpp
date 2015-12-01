@@ -46,7 +46,7 @@ Watchdog W = Watchdog();
 MS5803 p_sensor(D14, D15,ms5803_addrCL); 
 TMP102 temperature(D14, D15, 0x90); //A0 pin is connected to ground
 Serial gps_ser(D8,D2); //serial to gps, 9600 baud. D8 <-> TX , D2 <-> RX
-SDFileSystem sd(SPI_MOSI, SPI_MISO, SPI_SCK, D9, "sd"); // the pinout on the mbed Cool Components workshop board / mosi, miso, sclk, cs
+SDFileSystem sd(SPI_MOSI, SPI_MISO, SPI_SCK, SPI_CS, "sd"); // the pinout on the mbed Cool Components workshop board / mosi, miso, sclk, cs
 TinyGPS gps;
 AnalogIn ain(A0); //Reads the power
 
@@ -55,6 +55,8 @@ PID controller(1.0, 0.0, 0.0, PID_RATE);
 PwmOut  heater(PB_10);
 
 //LOGGING FUNCS
+int logging_setup();
+void logging_loop(FILE *logging_file);
 int update_data();
 void log_data(FILE *fp);
 
@@ -64,28 +66,12 @@ void internalStateSetup();
 
 
 int main() {
-    //Initialize relevant sensors 
-    p_sensor.MS5803Init();
-    gps_ser.baud(9600);
-    //printf("Simple TinyGPS library v. %i\n",TinyGPS::library_version());
-    //Test out SD Card library's functionality 
-    mkdir("/sd/test_dir", 0777); 
-    FILE *fp = fopen("/sd/test_dir/test_file.txt", "a");
-    if(fp == NULL) {
-        error("Could not open file for write\n");
-        return -1;
-    } else { //Now write in one line of data into the new file! 
-        update_data();
-        log_data(fp);
-        fclose(fp); 
-    }
-    printf("Now beginning logging loop!\n");
-    //If this works, begin the logging loop!
-    mkdir("/sd/data", 0777); 
-    logging_file = fopen("/sd/data/logging.txt", "a");
+    printf("Doing Logging Setup!\n");
+    int error = logging_setup();
+    if (error) return -1;
+    printf("Now beginning the logging loop!\n");
     while (true) {
-        update_data();
-        log_data(logging_file);        
+        logging_loop(logging_file); 
     }
     fclose(logging_file);
     return 0;
@@ -163,7 +149,7 @@ int update_data() {
     while (!gps_ready && gps_counter < max_gps_requests) {
         gps_ready = gps_readable();
         gps_counter++;
-        printf("Waiting!\n");
+        //printf("Waiting!\n");
     }
     if (gps_ready) {
         update_lat_long();
@@ -175,6 +161,39 @@ int update_data() {
         place_dummy_gps_values();
     }
     return 0; //Data update was a success! 
+}
+
+
+int logging_setup() {
+    p_sensor.MS5803Init();
+    gps_ser.baud(9600);
+    mkdir("/sd/test_dir", 0777); 
+    wait(1.0);
+    FILE *fp = fopen("/sd/test_dir/test_file2.txt", "a");
+    wait(1.0);
+    if(fp == NULL) {
+        error("Could not open test file for write\n");
+        return 1;
+    } else { //Now write in one line of data into the new file! 
+        update_data();
+        log_data(fp);
+        fclose(fp); 
+    }
+    mkdir("/sd/data", 0777); 
+    wait(1.0);
+    logging_file = fopen("/sd/data/logging2.txt", "a"); 
+    wait(1.0);
+    if(logging_file == NULL) {
+        error("Could not open log file for write\n");
+        return 1;
+    } 
+    return 0;
+}
+
+
+void logging_loop(FILE *log_file) {
+    update_data();
+    log_data(log_file);        
 }
 
 
