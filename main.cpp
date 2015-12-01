@@ -29,7 +29,7 @@ static char date[32];
 static unsigned long encoded_chars = 0;
 static unsigned short good_sentences = 0;
 static unsigned short failed_checksums = 0;
-
+static FILE *logging_file = NULL;
 
 MS5803 p_sensor(D14, D15,ms5803_addrCL); 
 TMP102 temperature(D14, D15, 0x90); //A0 pin is connected to ground
@@ -62,12 +62,12 @@ int main() {
     printf("Now beginning logging loop!\n");
     //If this works, begin the logging loop!
     mkdir("/sd/data", 0777); 
-    FILE *lfp = fopen("/sd/data/logging.txt", "a");
+    logging_file = fopen("/sd/data/logging.txt", "a");
     while (true) {
         update_data();
-        log_data(lfp);        
+        log_data(logging_file);        
     }
-    fclose(lfp);
+    fclose(logging_file);
     return 0;
 }
 
