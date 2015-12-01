@@ -18,6 +18,7 @@ status:
 #include "MS5803.h"
 #include "PID.h"
 #include "Watchdog.h"
+#include "ScheduleEvent.h"
 
 
 //LOGGING GLOBAL VARS
