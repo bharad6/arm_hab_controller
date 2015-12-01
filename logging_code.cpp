@@ -20,7 +20,6 @@ status:
 #include "Watchdog.h"
 #include "ScheduleEvent.h"
 
-
 //LOGGING GLOBAL VARS
 static float internal_temp = 0.0;
 static float external_temp = 0.0;
@@ -38,7 +37,7 @@ static FILE *logging_file = NULL;
 
 //INTERNAL GLOBAL VARS
 #define WATCH_DOG_RATE 500.0
-#define PID_RATE 120.0
+#define PID_RATE 40.0
 #define DESIRED_INTERNAL_TEMP 20.0 
 #define CURR_TEMP 23.0
 Watchdog W = Watchdog();
@@ -55,11 +54,13 @@ AnalogIn ain(A0); //Reads the power
 PID controller(1.0, 0.0, 0.0, PID_RATE);
 PwmOut  heater(PB_10);
 
+//GENERAL FUNCS
+int complete_setup();
+
+
 //LOGGING FUNCS
 int logging_setup();
-void logging_loop(FILE *logging_file);
-int update_data();
-void log_data(FILE *fp);
+void logging_loop(const void *context);
 
 //INTERNAL FUNCS
 void internalStateLoop();
@@ -67,24 +68,37 @@ void internalStateSetup();
 
 
 int main() {
-    printf("Doing Logging Setup!\n");
-    int error = logging_setup();
-    if (error) return -1;
-    printf("Now beginning the logging loop!\n");
-    while (true) {
-        logging_loop(logging_file); 
+
+    int setup_status = complete_setup();
+    if (setup_status) {
+        printf("Set up failed\n");
+        return 1;
     }
+    //Set up a task manager that can process up to 20 tasks
+    TaskManager task_manager(20);
+    //Set up the Logging Loop
+    ScheduleEvent log_event(&task_manager, logging_loop, logging_file);
+    Ticker log_ticker;
+    log_ticker.attach(&log_event, &ScheduleEvent::handle, 10.0);
+    //Set up the Internal Loop
+    ScheduleEvent internal_event(&task_manager, internalStateLoop, NULL);
+    Ticker internal_ticker;
+    internal_ticker.attach(&internal_event, &ScheduleEvent::handle, PID_RATE);
+  
+    task_manager.run();
+
     fclose(logging_file);
     return 0;
 }
 
-void log_data(FILE *fp) {
-    char data_buffer[200];
-    sprintf(data_buffer,"%s %.6f %.6f %.6f %lu %.6f %.6f %.6f %.6f %lu %hu %hu\n",
-        date,latitude,longitude,altitude,precision,internal_temp,external_temp,pressure,power,
-        encoded_chars,good_sentences,failed_checksums);
-    fprintf(fp,data_buffer);
-    printf(data_buffer);
+
+int complete_setup() {
+    printf("Doing Logging Setup!\n");
+    int error = logging_setup();
+    if (error) return 1;
+    printf("Doing Internal Setup!\n");
+    internalStateSetup();
+    return 0;
 }
 
 int update_lat_long() {
@@ -125,16 +139,6 @@ bool gps_readable() {
     return new_data;
 }
 
-void place_dummy_gps_values() {
-    latitude = -1000.0;
-    longitude = -1000.0; 
-    altitude = -1000.0; 
-    precision = -1000;
-    sprintf(date,"20000 BC");
-    encoded_chars = -1;
-    good_sentences = -1;
-    failed_checksums = -1;
-}
 
 int update_data() {
     p_sensor.Barometer_MS5803(); //Gathers data from external temp/pressure sensor 
@@ -159,11 +163,28 @@ int update_data() {
         gps.stats(&encoded_chars, &good_sentences, &failed_checksums);
         update_datetime();
     } else {
-        place_dummy_gps_values();
+        //Place DUMMY GPS VALUES 
+        latitude = -1000.0;
+        longitude = -1000.0; 
+        altitude = -1000.0; 
+        precision = -1000;
+        sprintf(date,"20000 BC");
+        encoded_chars = -1;
+        good_sentences = -1;
+        failed_checksums = -1;
     }
     return 0; //Data update was a success! 
 }
 
+
+void log_data(FILE *fp) {
+    char data_buffer[200];
+    sprintf(data_buffer,"%s %.6f %.6f %.6f %lu %.6f %.6f %.6f %.6f %lu %hu %hu\n",
+        date,latitude,longitude,altitude,precision,internal_temp,external_temp,pressure,power,
+        encoded_chars,good_sentences,failed_checksums);
+    fprintf(fp,data_buffer);
+    printf(data_buffer);
+}
 
 int logging_setup() {
     p_sensor.MS5803Init();
@@ -191,13 +212,11 @@ int logging_setup() {
     return 0;
 }
 
-
-void logging_loop(FILE *log_file) {
+void logging_loop(const void *context) {
+    FILE *log_file = (FILE *)context;
     update_data();
     log_data(log_file);        
 }
-
-
 
 void internalStateSetup() {
   //TMP102.h temperature ranges from -40 to 125 C
@@ -212,7 +231,7 @@ void internalStateSetup() {
 void internalStateLoop() {
     //Pet the watchdog
     W.Pet();
-    controller.setProcessValue(CURR_TEMP); //We won't actually read from the TMP 102.h, we'll use the most recent internal temp variable (global).
+    controller.setProcessValue(internal_temp); //We won't actually read from the TMP 102.h, we'll use the most recent internal temp variable (global).
     // Set the new output. 
     heater = controller.compute();
     printf("What should the output be? %f\n", controller.compute());

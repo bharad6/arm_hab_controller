@@ -20,7 +20,6 @@ status:
 #include "Watchdog.h"
 #include "ScheduleEvent.h"
 
-
 //LOGGING GLOBAL VARS
 static float internal_temp = 0.0;
 static float external_temp = 0.0;
@@ -58,8 +57,6 @@ PwmOut  heater(PB_10);
 //LOGGING FUNCS
 int logging_setup();
 void logging_loop(FILE *logging_file);
-int update_data();
-void log_data(FILE *fp);
 
 //INTERNAL FUNCS
 void internalStateLoop();
@@ -76,15 +73,6 @@ int main() {
     }
     fclose(logging_file);
     return 0;
-}
-
-void log_data(FILE *fp) {
-    char data_buffer[200];
-    sprintf(data_buffer,"%s %.6f %.6f %.6f %lu %.6f %.6f %.6f %.6f %lu %hu %hu\n",
-        date,latitude,longitude,altitude,precision,internal_temp,external_temp,pressure,power,
-        encoded_chars,good_sentences,failed_checksums);
-    fprintf(fp,data_buffer);
-    printf(data_buffer);
 }
 
 int update_lat_long() {
@@ -125,16 +113,6 @@ bool gps_readable() {
     return new_data;
 }
 
-void place_dummy_gps_values() {
-    latitude = -1000.0;
-    longitude = -1000.0; 
-    altitude = -1000.0; 
-    precision = -1000;
-    sprintf(date,"20000 BC");
-    encoded_chars = -1;
-    good_sentences = -1;
-    failed_checksums = -1;
-}
 
 int update_data() {
     p_sensor.Barometer_MS5803(); //Gathers data from external temp/pressure sensor 
@@ -159,11 +137,28 @@ int update_data() {
         gps.stats(&encoded_chars, &good_sentences, &failed_checksums);
         update_datetime();
     } else {
-        place_dummy_gps_values();
+        //Place DUMMY GPS VALUES 
+        latitude = -1000.0;
+        longitude = -1000.0; 
+        altitude = -1000.0; 
+        precision = -1000;
+        sprintf(date,"20000 BC");
+        encoded_chars = -1;
+        good_sentences = -1;
+        failed_checksums = -1;
     }
     return 0; //Data update was a success! 
 }
 
+
+void log_data(FILE *fp) {
+    char data_buffer[200];
+    sprintf(data_buffer,"%s %.6f %.6f %.6f %lu %.6f %.6f %.6f %.6f %lu %hu %hu\n",
+        date,latitude,longitude,altitude,precision,internal_temp,external_temp,pressure,power,
+        encoded_chars,good_sentences,failed_checksums);
+    fprintf(fp,data_buffer);
+    printf(data_buffer);
+}
 
 int logging_setup() {
     p_sensor.MS5803Init();
@@ -191,13 +186,10 @@ int logging_setup() {
     return 0;
 }
 
-
 void logging_loop(FILE *log_file) {
     update_data();
     log_data(log_file);        
 }
-
-
 
 void internalStateSetup() {
   //TMP102.h temperature ranges from -40 to 125 C
