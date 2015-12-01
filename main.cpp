@@ -16,7 +16,11 @@ status:
 #include "TinyGPS.h"
 #include "TMP102.h"
 #include "MS5803.h"
+#include "PID.h"
+#include "Watchdog.h"
 
+
+//LOGGING GLOBAL VARS
 static float internal_temp = 0.0;
 static float external_temp = 0.0;
 static float pressure = 0.0; 
@@ -31,16 +35,32 @@ static unsigned short good_sentences = 0;
 static unsigned short failed_checksums = 0;
 static FILE *logging_file = NULL;
 
+//INTERNAL GLOBAL VARS
+#define WATCH_DOG_RATE 500.0
+#define PID_RATE 120.0
+#define DESIRED_INTERNAL_TEMP 20.0 
+#define CURR_TEMP 23.0
+Watchdog W = Watchdog();
+
+//LOGGING PINS 
 MS5803 p_sensor(D14, D15,ms5803_addrCL); 
 TMP102 temperature(D14, D15, 0x90); //A0 pin is connected to ground
 Serial gps_ser(D8,D2); //serial to gps, 9600 baud. D8 <-> TX , D2 <-> RX
 SDFileSystem sd(SPI_MOSI, SPI_MISO, SPI_SCK, D9, "sd"); // the pinout on the mbed Cool Components workshop board / mosi, miso, sclk, cs
-///SPI_CS
 TinyGPS gps;
-AnalogIn ain(A0);
+AnalogIn ain(A0); //Reads the power
 
+//INTERNAL PINS
+PID controller(1.0, 0.0, 0.0, PID_RATE);
+PwmOut  heater(PB_10);
+
+//LOGGING FUNCS
 int update_data();
 void log_data(FILE *fp);
+
+//INTERNAL FUNCS
+void internalStateLoop();
+void internalStateSetup();
 
 
 int main() {
@@ -155,4 +175,30 @@ int update_data() {
         place_dummy_gps_values();
     }
     return 0; //Data update was a success! 
+}
+
+
+
+void internalStateSetup() {
+  //TMP102.h temperature ranges from -40 to 125 C
+  controller.setInputLimits(-40.0, 125.0);
+  controller.setOutputLimits(0.0, 1.0); 
+  controller.setBias(0.3); // Try experimenting with the bias! 
+  controller.setMode(AUTO_MODE);
+  controller.setSetPoint(DESIRED_INTERNAL_TEMP);  
+  W.Start(WATCH_DOG_RATE); 
+}
+
+void internalStateLoop() {
+    //Pet the watchdog
+    W.Pet();
+    controller.setProcessValue(CURR_TEMP); //We won't actually read from the TMP 102.h, we'll use the most recent internal temp variable (global).
+    // Set the new output. 
+    heater = controller.compute();
+    printf("What should the output be? %f\n", controller.compute());
+    //printf("Was reset by watchdog? %s\n", W.WasResetByWatchdog() ? "true" : "false");
+    // Now check for termination conditions
+    // 1. If the GPS lat,lon exceed the permitted bounds, cut down.
+    // 2. If you receive an iridum command telling you to end the flight, cut down.
+    // 3. If you've not received an Iridium command in a while (5 hrs), cut down. 
 }
