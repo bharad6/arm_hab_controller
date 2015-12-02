@@ -36,8 +36,8 @@ static unsigned short failed_checksums = 0;
 static FILE *logging_file = NULL;
 
 //INTERNAL GLOBAL VARS
-#define WATCH_DOG_RATE 500.0
-#define PID_RATE 120.0
+#define WATCH_DOG_RATE 22.0
+#define PID_RATE 22.0
 #define DESIRED_INTERNAL_TEMP 20.0 
 #define CURR_TEMP 23.0
 Watchdog W = Watchdog();

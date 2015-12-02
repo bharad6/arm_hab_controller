@@ -36,8 +36,8 @@ static unsigned short failed_checksums = 0;
 static FILE *logging_file = NULL;
 
 //INTERNAL GLOBAL VARS
-#define WATCH_DOG_RATE 500.0
-#define PID_RATE 40.0
+#define WATCH_DOG_RATE 22.0
+#define PID_RATE 22.0
 #define DESIRED_INTERNAL_TEMP 20.0 
 #define CURR_TEMP 23.0
 Watchdog W = Watchdog();
@@ -63,7 +63,7 @@ int logging_setup();
 void logging_loop(const void *context);
 
 //INTERNAL FUNCS
-void internalStateLoop();
+void internalStateLoop(const void *context);
 void internalStateSetup();
 
 
@@ -93,6 +93,7 @@ int main() {
 
 
 int complete_setup() {
+    if (W.WasResetByWatchdog()) printf("Was reset by watchdog\n");
     printf("Doing Logging Setup!\n");
     int error = logging_setup();
     if (error) return 1;
@@ -228,7 +229,7 @@ void internalStateSetup() {
   W.Start(WATCH_DOG_RATE); 
 }
 
-void internalStateLoop() {
+void internalStateLoop(const void *context) {
     //Pet the watchdog
     W.Pet();
     controller.setProcessValue(internal_temp); //We won't actually read from the TMP 102.h, we'll use the most recent internal temp variable (global).
