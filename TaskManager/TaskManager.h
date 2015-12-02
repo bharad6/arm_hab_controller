@@ -5,7 +5,6 @@
  * Task Manager: provides a queue of tasks that may be scheduled (added)
  *               and be continuously executed.
  */
-#include "TaskContext.h"
 #include "RingBuffer.h"
 
 class TaskManager {

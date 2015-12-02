@@ -67,10 +67,10 @@ int IridiumSBD2::sendSBDBinary(const uint8_t *txData, size_t txDataSize)
     dbg("Old send or receive\r\n");
   }
   dbg("delta = \r\n");
-  dbg((uint16_t)((millis() - this->startTime)/1000));
+  dbg((uint16_t)((millis_time() - this->startTime)/1000));
   dbg("\r\n");
   dbg((uint16_t)(this->duration));
-  if (!this->initialSendOrReceive && millis() - this->startTime <= 1000UL*this->duration) {
+  if (!this->initialSendOrReceive && millis_time() - this->startTime <= 1000UL*this->duration) {
      return ISBD_BUSY;
   }
   
@@ -95,10 +95,10 @@ int IridiumSBD2::sendSBDText(const char *txTxtMessage)
     dbg("Old send or receive\r\n");
   }
   dbg("delta = \r\n");
-  dbg((uint16_t)((millis() - this->startTime)/1000));
+  dbg((uint16_t)((millis_time() - this->startTime)/1000));
   dbg("\r\n");
   dbg((uint16_t)(this->duration));
-  if (!this->initialSendOrReceive && millis() - this->startTime <= 1000UL*this->duration) {
+  if (!this->initialSendOrReceive && millis_time() - this->startTime <= 1000UL*this->duration) {
      return ISBD_BUSY;
   }
 
@@ -115,7 +115,7 @@ int IridiumSBD2::receiveSBDBinary()
 {
   if (this->reentrant) return ISBD_REENTRANT;
 
-  if (!this->initialSendOrReceive && millis() - this->startTime <= 1000UL * this->duration) {
+  if (!this->initialSendOrReceive && millis_time() - this->startTime <= 1000UL * this->duration) {
      return ISBD_BUSY;
   }
 
@@ -320,7 +320,7 @@ bool IridiumSBD2::internalBeginATK0(bool terminated) {
 
   dbg(F("Calling internalBeginATK0\r\n"));
   send(F("AT&K0\r"));
-  startTime = millis();
+  startTime = millis_time();
   duration = atTimeout;
   waitForATResponse(internalAwakeNum);
 
@@ -334,7 +334,7 @@ bool IridiumSBD2::internalBeginATD0(bool terminated) {
 
   dbg(F("Calling internalBeginATD0\r\n"));
   send(F("AT&D0\r"));
-  startTime = millis();
+  startTime = millis_time();
   duration = atTimeout;
   waitForATResponse(internalBeginATK0Num);
 
@@ -348,7 +348,7 @@ bool IridiumSBD2::internalBeginATE1(bool terminated) {
   
   dbg(F("Calling internalBeginATE1\r\n"));
   send(F("ATE1\r"));
-  startTime = millis();
+  startTime = millis_time();
   duration = atTimeout;
   waitForATResponse(internalBeginATD0Num);
 
@@ -366,14 +366,14 @@ int IridiumSBD2::internalBegin()
   power(true); // power on
    
   uint32_t startupTime = 500; //ms
-  for (uint32_t start = millis(); millis() - start < startupTime;) {
+  for (uint32_t start = millis_time(); millis_time() - start < startupTime;) {
     /* Future: make this a non-blocking wait (low priority)*/
   }
   
   // Turn on modem and wait for a response from "AT" command to begin
   this->asleep = true; // Jacky's trick to make all other internal functions inactive
                        // except for begin() and waitForATResponse to accept data
-  startTime = millis();
+  startTime = millis_time();
   duration = ISBD_STARTUP_MAX_TIME;
   send(F("AT\r"));
   waitForATResponse(internalBeginATE1Num);
@@ -394,7 +394,7 @@ int IridiumSBD2::internalSendSBDText(const char *txTxtMessage) {
   }
   send(F("\r"), false);
  
-  this->startTime = millis();
+  this->startTime = millis_time();
   this->duration = atTimeout;
   waitForATResponse(receiveOKFromSendingSBDTextNum);
 
@@ -420,7 +420,7 @@ int IridiumSBD2::internalSendSBDBinary(const uint8_t *txData, size_t txDataSize)
   this->txDataSize = txDataSize;
 
   // Get Signal Quality
-  this->startTime = millis();
+  this->startTime = millis_time();
   this->duration = atTimeout;
   internalGetSignalQuality(receiveSignalQualityInSendNum);
 
@@ -436,7 +436,7 @@ int IridiumSBD2::internalReceiveSBD()
       return ISBD_IS_ASLEEP;
    }
 
-   this->startTime = millis();
+   this->startTime = millis_time();
    this->duration = ISBD_DEFAULT_SENDRECEIVE_TIME;
    this->quality = 0;
 
@@ -483,7 +483,7 @@ int IridiumSBD2::internalSleep()
    // Best Practices Guide suggests this before shutdown
    send(F("AT*F\r"));
 
-   this->startTime = millis();
+   this->startTime = millis_time();
    this->duration = atTimeout;
    waitForATResponse(powerOffNum);
 
@@ -571,7 +571,7 @@ void IridiumSBD2::internalSendOpenConnectionRequest() {
   send("\r", false);
 
   /* wait for ready signal */
-  this->startTime = millis();
+  this->startTime = millis_time();
   this->duration = atTimeout;
   waitForATResponse(receiveOpenReadyNum, 0, NULL, "READY\r\n");
 }
@@ -606,7 +606,7 @@ bool IridiumSBD2::receiveOpenReady(bool terminated) {
   serial.putc(checksum & 0xFF);
 
   /* wait for checksum ok confirmation */
-  startTime = millis();
+  startTime = millis_time();
   duration = atTimeout; 
   waitForATResponse(receiveChecksumNum, 0, NULL, "0\r\n\r\nOK\r\n");
   return true;
@@ -748,7 +748,7 @@ bool IridiumSBD2::receiveSBDRBResponse(bool terminated) {
   dbg(F("Calling receiveSBDRBResponse\r\n"));
   
   /* Reinitialize timing for actual data receiving */
-  startTime = millis();
+  startTime = millis_time();
   duration = atTimeout;
   waitForATResponse(processSBDRBResponsNum, mtLen + 5, NULL, NULL); // No terminator as well!
   return true;
@@ -821,14 +821,14 @@ void IridiumSBD2::power(bool on)
       DigitalOut sleep_pin(this->sleepPin);
       //digitalWrite(this->sleepPin, HIGH); // HIGH = awake
       sleep_pin = 1;
-      lastPowerOnTime = millis();
+      lastPowerOnTime = millis_time();
    }
 
    else
    {
       // Best Practices Guide suggests waiting at least 2 seconds
       // before powering off again
-      unsigned long elapsed = millis() - lastPowerOnTime;
+      unsigned long elapsed = millis_time() - lastPowerOnTime;
       if (elapsed < 2000UL)
          wait(elapsed/1000);
 

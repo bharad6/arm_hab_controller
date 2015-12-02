@@ -2,6 +2,7 @@
 #define _PROGRAM_INCLUDES_H
 
 typedef void (*Task)(const void *);
+typedef void (*SerialTask)(const void *, const void *);
 
 /* Structure that wraps the task and context to avoid race condition
  * where task exists and context doesn't or vice versa.
