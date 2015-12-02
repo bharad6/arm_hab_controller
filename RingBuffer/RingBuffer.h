@@ -31,6 +31,17 @@ public:
    *      Returns false if buffer is empty.
    */
   bool pop(T & obj);
+  
+  /*
+   * clear: Clears the entire memory by setting the empty and occupy pointe
+   *        to same index.
+   */
+  void clear();
+
+  /*
+   * getNumElem: gets the number of elements in the buffer
+   */
+  int getNumElem();
 
   /* 
    * isEmpty: Returns true if the buffer is empty.

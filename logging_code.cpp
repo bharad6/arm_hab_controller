@@ -11,7 +11,7 @@ status:
 */
 
 #include "mbed.h"
-#include <string>
+#include <string.h>
 #include "SDFileSystem.h"
 #include "TinyGPS.h"
 #include "TMP102.h"
@@ -19,6 +19,11 @@ status:
 #include "PID.h"
 #include "Watchdog.h"
 #include "ScheduleEvent.h"
+//#include "IridiumSBD2.h"
+//#include "InterruptEvent.h"
+
+//IRIDIUM GLOBAL VARS 
+
 
 //LOGGING GLOBAL VARS
 static float internal_temp = 0.0;
