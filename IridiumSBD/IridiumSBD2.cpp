@@ -1,8 +1,29 @@
 /*
-TODO:
-1. does not know if modem is alive or not, need a timer to wake up and turn 
-off power
+IridiumSBD2:
+This is the mbed synchronous version of the IridiumSBD.
+This library is written under the assumption that only single message may 
+be exchanged between the module and the satellite at any on time. Hence, any
+other messages received other than what is pertinent for the current message
+transaction will be dropped. 
+For example, during the transaction to aquire CSQ, if any message for non-CSQ
+transaction is received will be dropped.
+Because of this assumption, the action for a given received message is
+deterministic and do not have to worry about the possibility of having multiple
+communications going on between Iridium module and the satellite, reducing 
+complexity.
 
+Currently, the Iridium module keeps the state information via the completion 
+number, which corresponds to the function to check if the current message 
+transaction is fully completed and to take subsequent actions. 
+
+Future work:
+It may seem more reasonable to process the SBDRB message in the 
+processSBDRBResponse function. However, due to current known bug of the missing
+first few bytes of the SBDRB message, the processing of the received data is
+done in the main program's rxInterrupt function.
+Another possible way to make the code more compact is to include the interrupt
+code within the Iridium library itself, and just reveal the interface to the
+client to reduce the complexity on the client side.
 */
 
 #include "IridiumSBD2.h"
@@ -766,42 +787,7 @@ bool IridiumSBD2::processSBDRBResponse(bool terminated) {
   dbg(F("Calling processSBDRBResponse\r\n"));
   dbg((uint16_t)rxBuffer->getNumElem());
   dbg("\r\n");
-  /*
-  char szByte1 = 0;
-  char szByte2 = 0;
-  rxBuffer->pop(szByte1);
-  rxBuffer->pop(szByte2);
-  uint16_t size = 256 * (uint8_t)szByte1 + (uint8_t)szByte2;
-
-  console(F("[Binary size:"));
-  console(size);
-  console(F("]"));
   
-  for (int i = 0; i < this->mtLen; i++) {
-    char c;
-    if (rxBuffer->pop(c)) {
-      dbg(c);
-      messageBuffer->insert(c);
-    } else {
-      dbg("processSBDRBResponse Not enough data received\n");
-    }
-  }
-*/
-  /*char cksumByte1 = 0;
-  char cksumByte2 = 0;
-  rxBuffer->pop(cksumByte1);
-  rxBuffer->pop(cksumByte2);
-
-  uint16_t checksum = 256 * (uint8_t)cksumByte1 + (uint8_t)cksumByte2;
-  console(F("[csum:"));
-  console(checksum);
-  console(F("]"));
-  
-  this->completionNum = noneNum;
-  this->duration = 0; // allow any requests for send/receive since entire message received
-  */
-  /* TODO: schedule task to process data */
-
   return true;
 }
 
