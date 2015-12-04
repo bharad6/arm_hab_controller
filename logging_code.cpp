@@ -1,12 +1,13 @@
 /*
 ###############################
-mbed nucleo l152re sd and gps test
-using tinygps v13 and sdfilesystem libraries.
-last change: 10/12/2015
-status:
-    - gps working
-    - sd logging functional
-
+This is the final core software program for the High Altitude Balloon Control
+Project for cs241 at Stanford University.
+Authors: Iskender Kushan, Shane Leonard, Bharad Raghavan, Jacky Wang
+Known issues and future development:
+1. Iridium module can send properly to the satellite module using both modes: 
+  binary and text, but the module is currently missing the first few bytes of
+  the main message received. This prevents us from doing the checksum
+  verification, though also ignored in the original Arduino library.
 ###############################
 */
 
@@ -108,7 +109,6 @@ int main() {
     Ticker iridium_send_ticker;
     iridium_send_ticker.attach(&iridum_send_event, &ScheduleEvent::handle, IRIDIUM_SEND_RATE);
 
-  
     task_manager.run();
 
     fclose(logging_file);
@@ -289,9 +289,8 @@ void iridiumSetup() {
   isbd.setPowerProfile(1);
 }
 
-
+/* This function tries to send the latest logging data over Iridium */
 void iridiumLoop(const void *context) {
- 
     char data_buffer[200];
     sprintf(data_buffer,"IRIDIUM: %s %.6f %.6f %.6f %lu %.6f %.6f %.6f %.6f %lu %hu %hu",
         date,latitude,longitude,altitude,precision,internal_temp,external_temp,pressure,power,
@@ -308,6 +307,13 @@ void iridiumLoop(const void *context) {
 
 }
 
+/* This function is invoked whenever new data is received. Such new data 
+  includes both the actual message sent from as well as all control messages,
+  such as "CSQ:"
+
+  Currently, this is the function in which you may read out the actual (SBDRX) 
+  message and perform appropriate tasks.
+*/
 void rxInterruptLoop(const void *_serial, const void *_sbd) {
   Serial *serial = (Serial *)_serial;
   IridiumSBD2 *sbd = (IridiumSBD2 *)_sbd;
@@ -318,7 +324,10 @@ void rxInterruptLoop(const void *_serial, const void *_sbd) {
     return;
   }
 
-  bool terminated = false;
+  bool terminated = false; /* This is used to check if the current set of recvd
+                              bytes is the end of a full control message, which
+                              will trigger subsequent control actions.
+                            */
   while (serial->readable()) { // serial == nss (main.cpp)
     char c = (char) serial->getc();
     sbd->console(c);
@@ -336,12 +345,16 @@ void rxInterruptLoop(const void *_serial, const void *_sbd) {
                sbd->setPromptState(1);
             }
           } else {
-            matchPromptPos = c == prompt[0] ? 1 : 0; // try to match prompt, if current char matches, then move on to next char to match
+            matchPromptPos = c == prompt[0] ? 1 : 0; /* try to match prompt, 
+                                                        if current char matches, 
+                                                        then move on to next char 
+                                                        to match
+                                                      */
             sbd->setMatchPromptPos(matchPromptPos);
          }
          break;
 
-        case 1: // gathering reponse from end of prompt to first \r
+        case 1: // gathering reponse from end of prompt to first
           int responseSize = sbd->getResponseSize();
           if (responseSize > 0) {
             if (c == '\r' || responseSize < 2) { 
@@ -383,7 +396,13 @@ void rxInterruptLoop(const void *_serial, const void *_sbd) {
 
   if (sbd->checkCompletion(terminated) && sbd->getCompletionNum() == processSBDRBResponsNum) {
     char c;
-    int nBytes = sbd->getResponseSize() - 4;
+    int nBytes = sbd->getResponseSize() - 4; /* -4 because we are currently 
+                                                seeing the four bytes missing
+                                                on most cases, though not always
+                                                consistent.
+                                              */
+    /* NOTE: THIS IS WHERE YOU MAY DECIDE WHAT ACTIONS/TASKS TO ENQUE FOR 
+             RECEIVING DIFFERENT TYPES OF MESSAGES FROM SBDRX */
     if (nBytes > 0) {
         printf("I RECEIVED A MESSAGE :) \n");
     }
@@ -398,6 +417,4 @@ void rxInterruptLoop(const void *_serial, const void *_sbd) {
 
   return;
 }
-
-
 
