@@ -311,7 +311,7 @@ void iridiumLoop(const void *context) {
   includes both the actual message sent from as well as all control messages,
   such as "CSQ:"
 
-  Currently, this is the function in which you may read out the actual (SBDRX) 
+  Currently, this is the function in which you may read out the actual (SBDRB) 
   message and perform appropriate tasks.
 */
 void rxInterruptLoop(const void *_serial, const void *_sbd) {
@@ -402,7 +402,7 @@ void rxInterruptLoop(const void *_serial, const void *_sbd) {
                                                 consistent.
                                               */
     /* NOTE: THIS IS WHERE YOU MAY DECIDE WHAT ACTIONS/TASKS TO ENQUE FOR 
-             RECEIVING DIFFERENT TYPES OF MESSAGES FROM SBDRX */
+             RECEIVING DIFFERENT TYPES OF MESSAGES FROM SBDRB */
     if (nBytes > 0) {
         printf("I RECEIVED A MESSAGE :) \n");
     }
