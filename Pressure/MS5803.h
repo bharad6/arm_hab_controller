@@ -77,8 +77,8 @@ public:
     void MS5803ConvertD1(void);
     void MS5803ConvertD2(void);
     int32_t MS5803ReadADC(void);
-    float MS5803_Pressure (void);
-    float MS5803_Temperature (void);
+    float MS5803_Pressure (void); //Get the external pressure reading
+    float MS5803_Temperature (void); //Get the external temperature reading. 
     void Barometer_MS5803(void);
 
 

@@ -67,18 +67,18 @@ Serial nss(PB_10, PB_11, "isbdSerial"); // TX, RX // PC_12, PD_2
 IridiumSBD2 isbd(nss, D7); // pick a sleep pin
 
 
-//GENERAL FUNCS
+//GENERAL FUNCTIONS
 int complete_setup();
 
-//LOGGING FUNCS
+//LOGGING FUNCTIONS
 int logging_setup();
 void logging_loop(const void *context);
 
-//INTERNAL FUNCS
+//INTERNAL FUNCTIONS
 void internalStateLoop(const void *context);
 void internalStateSetup();
 
-//IRIDUM FUNCTIONS
+//IRIDIUM FUNCTIONS
 void iridiumSetup();
 void rxInterruptLoop(const void *_serial, const void *_sbd);
 void iridiumLoop(const void *context);

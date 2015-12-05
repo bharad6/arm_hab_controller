@@ -29,13 +29,16 @@
  *  Date:       2014-10-30
  *  Description:    millis library for mbed
  */
+//A general timer library for mbed
+
 
 #include "mbed.h"
 
+//Increments the time by 1
 void millisTicker ();
-
+//Gets the time stored by millis (in milliseconds)
 uint32_t millis_time ();
-
+//Start the millis timer
 void startMillis ();
-
+//End the millis timer
 void stopMillis ();
