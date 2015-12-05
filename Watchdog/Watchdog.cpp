@@ -11,13 +11,25 @@
  */
 
 #include "Watchdog.h"
+
 #include "mbed.h"
 
+/* Log2 Function. Can use an optimized version if compiling with GCC. */
+#if defined(__GNUC__)
 static unsigned log2(unsigned val)
 {
-    unsigned leading_zeroes = __builtin_clz(val);
-    return 32 - leading_zeroes;
+    return (val == 0) ? 0 : 32 - __builtin_clz(val);
 }
+#else
+static unsigned log2(unsigned val)
+{
+    unsigned r = 0;
+
+    while (val >>= 1) r++;
+
+    return r;
+}
+#endif
 
 Watchdog::Watchdog()
 {
@@ -25,9 +37,21 @@ Watchdog::Watchdog()
      * Read the reset status register on startup to determine whether the
      * watchdog was the cause of the previous reset.
      */
-    reset_state = (RCC->CSR & (1 << 29));
+    reset_state = (bool)(RCC->CSR & (1 << 29));
+    if (reset_state)
+    {
+        /* Clear the reset flag. */
+        RCC->CSR |= (1 << 24);
+    }
 }
 
+/* 
+ * Start the watchdog, setting it to timeout after a given duration of time.
+ *
+ * @param interval Timeout interval, in seconds.
+ *
+ * @note On the STM32, the watchdog timer interval is limited to 26.2 seconds.
+ */
 void Watchdog::Start(float interval)
 {
     /* The newer STM Nucleo boards contain an on-board 32.768 kHz crystal. */
@@ -48,14 +72,10 @@ void Watchdog::Start(float interval)
         rlr = 0xFFF;
     }
 
-    /*
-     * Disable write protection for PR, RLR [Section 21.3.2].
-     */
+    /* Disable write protection for PR, RLR [Section 21.3.2].  */
     IWDG->KR = 0x5555;
 
-    /*
-     * Initialize the prescaler value.
-     */
+    /* Initialize the prescaler value.  */
     IWDG->PR = scale - 2;
 
     /* Initialize the reload register.  */
@@ -76,12 +96,7 @@ void Watchdog::Pet()
 }
 
 /* Returns true if the previous reset was caused by the watchdog. */
-bool Watchdog::WasResetByWatchdog()
+bool Watchdog::WatchdogCausedPreviousReset()
 {
-    if (reset_state)
-    {
-        /* Clear the reset flag. */
-        RCC->CSR |= (1 << 24);
-    }
     return reset_state;
 }

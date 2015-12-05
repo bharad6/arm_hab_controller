@@ -3,13 +3,16 @@
  * @date   2015/11/18
  *
  * Independent watchdog API for the STM32L1 series.
+ *
+ * @note Based on Arash Salarian's watchdog implementation.
+ * https://developer.mbed.org/users/salarian/code/Watchdog/
  */
 
 #include "mbed.h"
 
 /**
  * Independent watchdog timer, which will reset the microcontroller if it isn't
- * pet often enough.
+ * pet ("kicked", "fed", ...) often enough.
  *
  * @note On the STM32L1 series, there is an independent watchdog timer and a
  * window watchdog timer. This class only implements the indepedent watchdog
@@ -26,6 +29,8 @@ public:
      * interval.
      *
      * @param interval Watchdog countdown time, in seconds. 
+     *
+     * @note On the STM32, the maximum timer interval is limited to 26.2 seconds.
      */
     void Start(float interval);
 
@@ -37,7 +42,7 @@ public:
     /**
      * Returns true if the microcontroller was reset by the watchdog.
      */
-    bool WasResetByWatchdog();
+    bool WatchdogCausedPreviousReset();
 
 private:
     bool reset_state;
