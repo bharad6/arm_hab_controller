@@ -24,7 +24,7 @@ Known issues and future development:
 #include "InterruptEvent.h"
 
 //LOGGING GLOBAL VARS
-static float internal_temp = 0.0;
+static float internal_temp = 0.0; 
 static float external_temp = 0.0;
 static float pressure = 0.0; 
 static float power = 0.0;
@@ -37,34 +37,35 @@ static unsigned long encoded_chars = 0;
 static unsigned short good_sentences = 0;
 static unsigned short failed_checksums = 0;
 static FILE *logging_file = NULL;
+#define LOG_RATE 10.0
 
 //INTERNAL GLOBAL VARS
-#define WATCH_DOG_RATE 22.0
-#define PID_RATE 22.0
-#define DESIRED_INTERNAL_TEMP 20.0 
+#define WATCH_DOG_RATE 22.0 //Pet the watchdog every WATCH_DOG_RATE seconds
+#define PID_RATE 22.0 //Ideally the PID is activated every PID_RATE seconds for proper heating. 
+#define DESIRED_INTERNAL_TEMP 1.0 //Must keep weather balloon above freezing temperature
 #define CURR_TEMP 23.0
-Watchdog W = Watchdog();
+Watchdog W = Watchdog(); //Watch dog must be petted at least every 26 seconds
 
 //IRIDIUM GLOBAL VARS 
 RingBuffer<char> messageBuffer(300); //To store Iridium Messages
-#define IRIDIUM_SEND_RATE 60.0 
+#define IRIDIUM_SEND_RATE 60.0 //How often you want to send iridium messages
 
 //LOGGING PINS 
-MS5803 p_sensor(D14, D15,ms5803_addrCL); 
-TMP102 temperature(D14, D15, 0x90); //A0 pin is connected to ground
+MS5803 p_sensor(D14, D15,ms5803_addrCL); //External pressure and temperature sensor
+TMP102 temperature(D14, D15, 0x90); //The internal temperature sensor
 Serial gps_ser(D8,D2); //serial to gps, 9600 baud. D8 <-> TX , D2 <-> RX
-SDFileSystem sd(SPI_MOSI, SPI_MISO, SPI_SCK, SPI_CS, "sd"); // the pinout on the mbed Cool Components workshop board / mosi, miso, sclk, cs
+SDFileSystem sd(SPI_MOSI, SPI_MISO, SPI_SCK, SPI_CS, "sd"); // sd card
 TinyGPS gps;
 AnalogIn ain(A0); //Reads the power
 
 //INTERNAL PINS
-PID controller(1.0, 0.0, 0.0, PID_RATE);
-PwmOut  heater(PB_3);
+PID controller(1.0, 0.0, 0.0, PID_RATE); //PID Controller for internal heating
+PwmOut  heater(PB_3); //Heats the internal environment 
 
 //IRIDIUM PINS 
 Serial diagSerial(USBTX, USBRX, "diagnostic");
-Serial nss(PB_10, PB_11, "isbdSerial"); // TX, RX // PC_12, PD_2
-IridiumSBD2 isbd(nss, D7); // pick a sleep pin
+Serial nss(PB_10, PB_11, "isbdSerial"); // IRIDIUM to serial interface 
+IridiumSBD2 isbd(nss, D7); // IRIDIUM interface 
 
 
 //GENERAL FUNCTIONS
@@ -91,6 +92,7 @@ int main() {
     InterruptEvent e1(&task_manager, rxInterruptLoop, &isbd, &nss);
     nss.attach(&e1, &InterruptEvent::handle);
 
+    //Do the complete setup of sensors and modules and check that it works.
     int setup_status = complete_setup();
     if (setup_status) {
         printf("Set up failed\n");
@@ -99,7 +101,7 @@ int main() {
     //Set up the Logging Loop
     ScheduleEvent log_event(&task_manager, logging_loop, logging_file);
     Ticker log_ticker;
-    log_ticker.attach(&log_event, &ScheduleEvent::handle, 10.0);
+    log_ticker.attach(&log_event, &ScheduleEvent::handle, LOG_RATE);
     //Set up the Internal Loop
     ScheduleEvent internal_event(&task_manager, internalStateLoop, NULL);
     Ticker internal_ticker;
@@ -109,12 +111,16 @@ int main() {
     Ticker iridium_send_ticker;
     iridium_send_ticker.attach(&iridum_send_event, &ScheduleEvent::handle, IRIDIUM_SEND_RATE);
 
+    //run the task manager
     task_manager.run();
 
     fclose(logging_file);
     return 0;
 }
 
+/*
+Completely initialize all the logging sensors, the iridium module, and the internal state monitor
+*/
 
 int complete_setup() {
 
@@ -129,6 +135,7 @@ int complete_setup() {
     return 0;
 }
 
+//Update the latitude and longitude global variables with GPS data (or place dummy values)
 int update_lat_long() {
     unsigned long age;
     gps.f_get_position(&latitude, &longitude, &age); //Updates longitude and latitude
@@ -140,7 +147,7 @@ int update_lat_long() {
         return 0;
     }
 }
-
+//Update the datetime global variable with GPS data (or place dummy values)
 int update_datetime() {
     unsigned long age;
     int year;
@@ -155,6 +162,7 @@ int update_datetime() {
     }
 }
 
+//Check if we can read new GPS data (keep check for about 0.5 seconds) and return true or false.
 bool gps_readable() {
     bool new_data = false;
     for (unsigned long start = time(NULL); time(NULL) - start < 0.5;) {
@@ -167,7 +175,7 @@ bool gps_readable() {
     return new_data;
 }
 
-
+//Uses all the sensors to update all of the global variables that have to do with logging.
 int update_data() {
     p_sensor.Barometer_MS5803(); //Gathers data from external temp/pressure sensor 
     //Updates temperatures, pressure, and power 
@@ -204,7 +212,7 @@ int update_data() {
     return 0; //Data update was a success! 
 }
 
-
+//Logs the new batch of sensor data into file in SD card and also prints the line to the serial
 void log_data(FILE *fp) {
     char data_buffer[200];
     sprintf(data_buffer,"%s %.6f %.6f %.6f %lu %.6f %.6f %.6f %.6f %lu %hu %hu\n",
@@ -214,11 +222,14 @@ void log_data(FILE *fp) {
     printf(data_buffer);
 }
 
+//This function initializes all sensors to be ready for logging and also tests that
+//the SD-card's filesystem is working. 
 int logging_setup() {
     p_sensor.MS5803Init();
     gps_ser.baud(9600);
     mkdir("/sd/test_dir", 0777); 
     wait(1.0);
+    //Opens a test file to validate logging.
     FILE *fp = fopen("/sd/test_dir/test_file2.txt", "a");
     wait(1.0);
     if(fp == NULL) {
@@ -240,12 +251,14 @@ int logging_setup() {
     return 0;
 }
 
+//This updates the sensor data and then logs it to the SD Card.
 void logging_loop(const void *context) {
     FILE *log_file = (FILE *)context;
     update_data();
     log_data(log_file);        
 }
 
+//Sets up the internal state monitor (PID for heating and Watchdog)
 void internalStateSetup() {
   //TMP102.h temperature ranges from -40 to 125 C
   controller.setInputLimits(-40.0, 125.0);
@@ -256,6 +269,9 @@ void internalStateSetup() {
   W.Start(WATCH_DOG_RATE); 
 }
 
+/*Each time this is called, this pets the watchdog and computes how much the heater must be powered in order to maintain 
+the desired temperature. If you every want to change the internal workings of the system, this is the function where you put that 
+code*/
 void internalStateLoop(const void *context) {
     //Pet the watchdog
     W.Pet();
@@ -263,13 +279,13 @@ void internalStateLoop(const void *context) {
     // Set the new output. 
     heater = controller.compute();
     printf("What should the output be? %f\n", controller.compute());
-    //printf("Was reset by watchdog? %s\n", W.WasResetByWatchdog() ? "true" : "false");
     // Now check for termination conditions
     // 1. If the GPS lat,lon exceed the permitted bounds, cut down.
     // 2. If you receive an iridum command telling you to end the flight, cut down.
     // 3. If you've not received an Iridium command in a while (5 hrs), cut down. 
 }
 
+/* This function initializes the iridium module to work*/
 void iridiumSetup() {
   // Initialize timer
   set_time(1256729737);
